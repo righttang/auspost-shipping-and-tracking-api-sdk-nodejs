@@ -1,7 +1,113 @@
 import { z } from 'zod';
 
 const anyRecord = z.record(z.any());
-const shipmentPayload = anyRecord;
+const stateCodeSchema = z.enum(['ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA']);
+const postcodeSchema = z.string().regex(/^\d{4}$/, 'postcode must be 4 digits');
+
+const shipmentAddressSchema = z
+  .object({
+    name: z.string().min(1).optional().describe('Contact name'),
+    business_name: z.string().min(1).optional().describe('Business name'),
+    lines: z.array(z.string().min(1)).min(1).max(3).optional().describe('Address lines'),
+    suburb: z.string().min(1).describe('Suburb/locality'),
+    state: stateCodeSchema.describe('State code: ACT, NSW, NT, QLD, SA, TAS, VIC, WA'),
+    postcode: postcodeSchema.describe('4-digit postcode'),
+    country: z.string().min(2).max(3).optional().describe('Optional country code (e.g. AU)'),
+    phone: z.string().min(1).optional(),
+    email: z.string().email().optional()
+  })
+  .strict();
+
+const itemPriceAddressSchema = z
+  .object({
+    postcode: postcodeSchema.describe('4-digit postcode'),
+    suburb: z.string().min(1).optional().describe('Optional suburb (required for some StarTrack products)'),
+    country: z.string().length(2).optional().describe('ISO country code, defaults to AU')
+  })
+  .strict();
+
+const shipmentItemSchema = z
+  .object({
+    item_reference: z.string().min(1).optional(),
+    product_id: z.string().min(1).describe('AusPost product code (e.g. T28S)'),
+    length: z.coerce.number().positive().describe('Length in cm'),
+    width: z.coerce.number().positive().describe('Width in cm'),
+    height: z.coerce.number().positive().describe('Height in cm'),
+    weight: z.coerce.number().positive().describe('Weight in kg'),
+    authority_to_leave: z.boolean().optional(),
+    allow_partial_delivery: z.boolean().optional(),
+    contains_dangerous_goods: z.boolean().optional(),
+    packaging_type: z.string().max(3).optional(),
+    features: z.record(z.any()).optional()
+  })
+  .strict();
+
+const itemPriceItemSchema = z
+  .object({
+    item_reference: z.string().max(50).optional(),
+    length: z.coerce.number().positive().optional().describe('Length in cm'),
+    width: z.coerce.number().positive().optional().describe('Width in cm'),
+    height: z.coerce.number().positive().optional().describe('Height in cm'),
+    weight: z.coerce.number().positive().describe('Weight in kg'),
+    packaging_type: z.string().max(3).optional(),
+    product_ids: z.array(z.string().min(1)).optional(),
+    features: z.record(z.any()).optional()
+  })
+  .strict();
+
+const updateShipmentItemSchema = shipmentItemSchema
+  .extend({
+    item_id: z.string().min(1).describe('Existing item ID from create_shipment response')
+  })
+  .strict();
+
+const updateShipmentPayloadSchema = z
+  .object({
+    shipment_reference: z.string().max(50).optional(),
+    customer_reference_1: z.string().max(50).optional(),
+    customer_reference_2: z.string().max(50).optional(),
+    from: shipmentAddressSchema.describe('Sender address object'),
+    to: shipmentAddressSchema.describe('Recipient address object'),
+    items: z.array(updateShipmentItemSchema).min(1).describe('Items to update (must include item_id)')
+  })
+  .strict()
+  .describe(
+    'Shipment update body must use nested fields: from/to/items. Each item must include item_id plus product_id and parcel dimensions/weight.'
+  );
+
+const flatShipmentKeys = [
+  'origin_country',
+  'origin_suburb',
+  'origin_postcode',
+  'destination_country',
+  'destination_suburb',
+  'destination_postcode',
+  'service'
+] as const;
+
+const structuredShipmentHint =
+  'Shipments must use nested fields: { from: {...}, to: {...}, items: [{ product_id, length, width, height, weight }] }. Flat keys like origin_postcode/destination_postcode are not supported.';
+
+const shipmentPayload = z
+  .object({
+    shipment_reference: z.string().max(50).optional(),
+    customer_reference_1: z.string().max(50).optional(),
+    customer_reference_2: z.string().max(50).optional(),
+    from: shipmentAddressSchema.describe('Sender address object'),
+    to: shipmentAddressSchema.describe('Recipient address object'),
+    items: z.array(shipmentItemSchema).min(1).describe('One or more shipment items')
+  })
+  .strict()
+  .superRefine((shipment, context) => {
+    const detectedFlatKeys = flatShipmentKeys.filter((field) => field in shipment);
+    if (detectedFlatKeys.length > 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Unsupported flat shipment fields detected: ${detectedFlatKeys.join(', ')}. ${structuredShipmentHint}`
+      });
+    }
+  })
+  .describe(structuredShipmentHint);
 
 export const toolOutputSchema = {
   ok: z.boolean(),
@@ -35,16 +141,21 @@ export const emptySchema = z.object({});
 export const validateSuburbSchema = z
   .object({
     suburb: z.string().min(1),
-    state: z.enum(['ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA']),
-    postcode: z.string().regex(/^\d{4}$/, 'postcode must be 4 digits')
+    state: stateCodeSchema,
+    postcode: postcodeSchema
   })
   .strict();
 
 export const getItemPricesSchema = z
   .object({
-    data: anyRecord
-      .refine((value) => 'from' in value && 'to' in value && 'items' in value, 'data must include from, to, and items')
-      .describe('Request body for /prices/items')
+    data: z
+      .object({
+        from: itemPriceAddressSchema.describe('Origin address'),
+        to: itemPriceAddressSchema.describe('Destination address'),
+        items: z.array(itemPriceItemSchema).min(1).max(20).describe('Items to price')
+      })
+      .strict()
+      .describe('Structured request body for /prices/items')
   })
   .strict();
 
@@ -52,19 +163,19 @@ export const shipmentArraySchema = z.array(shipmentPayload).min(1);
 
 export const getShipmentPriceSchema = z
   .object({
-    shipments: z.union([shipmentPayload, shipmentArraySchema])
+    shipments: z.union([shipmentPayload, shipmentArraySchema]).describe(structuredShipmentHint)
   })
   .strict();
 
 export const validateShipmentSchema = z
   .object({
-    shipments: z.union([shipmentPayload, shipmentArraySchema])
+    shipments: z.union([shipmentPayload, shipmentArraySchema]).describe(structuredShipmentHint)
   })
   .strict();
 
 export const createShipmentSchema = z
   .object({
-    shipments: z.union([shipmentPayload, shipmentArraySchema])
+    shipments: z.union([shipmentPayload, shipmentArraySchema]).describe(structuredShipmentHint)
   })
   .strict();
 
@@ -87,7 +198,7 @@ export const getShipmentsSchema = z
 export const updateShipmentSchema = z
   .object({
     shipment_id: z.string().min(1),
-    data: anyRecord
+    data: updateShipmentPayloadSchema
   })
   .strict();
 
@@ -110,7 +221,7 @@ export const createLabelsSchema = z
         format: z.enum(['PDF', 'ZPL']).optional(),
         waitForLabelUrl: z.boolean().optional()
       })
-      .passthrough()
+      .strict()
       .optional()
   })
   .strict();
@@ -167,7 +278,7 @@ export const runFulfillmentFlowSchema = z
   .object({
     step: fulfillmentStepSchema,
     workflow_id: z.string().optional(),
-    shipments: z.union([shipmentPayload, shipmentArraySchema]).optional(),
+    shipments: z.union([shipmentPayload, shipmentArraySchema]).describe(structuredShipmentHint).optional(),
     shipment_ids: z.array(z.string().min(1)).optional(),
     label_options: createLabelsSchema.shape.options.optional(),
     order_options: createOrderSchema.shape.options.optional(),

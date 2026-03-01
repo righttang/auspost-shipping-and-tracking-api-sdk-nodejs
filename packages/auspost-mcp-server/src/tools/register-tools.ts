@@ -118,7 +118,7 @@ export function registerAuspostTools(server: McpServer, handlers: ToolHandlers):
     {
       title: 'AusPost Get Item Prices',
       description:
-        'Get base item pricing excluding surcharges. Use for quick estimate. Typical follow-up: auspost_get_shipment_price.',
+        'Get base item pricing excluding surcharges. Input data must be structured as { from: { postcode }, to: { postcode }, items: [{ weight, ... }] }. Typical follow-up: auspost_get_shipment_price.',
       inputSchema: getItemPricesSchema,
       outputSchema: toolOutputSchema,
       annotations: {
@@ -136,7 +136,7 @@ export function registerAuspostTools(server: McpServer, handlers: ToolHandlers):
     {
       title: 'AusPost Get Shipment Price',
       description:
-        'Get full shipment price including surcharges/fuel. Required pricing step before create_shipment in normal flow.',
+        'Get full shipment price including surcharges/fuel. Required pricing step before create_shipment in normal flow. shipments must use nested fields: from/to/items (not flat origin_* or destination_* keys).',
       inputSchema: getShipmentPriceSchema,
       outputSchema: toolOutputSchema,
       annotations: {
@@ -154,7 +154,7 @@ export function registerAuspostTools(server: McpServer, handlers: ToolHandlers):
     {
       title: 'AusPost Validate Shipment',
       description:
-        'Validate shipment payload without creating records. Typical follow-up: auspost_create_shipment.',
+        'Validate shipment payload without creating records. shipments must use nested fields: from/to/items (not flat origin_* or destination_* keys). Typical follow-up: auspost_create_shipment.',
       inputSchema: validateShipmentSchema,
       outputSchema: toolOutputSchema,
       annotations: {
@@ -172,7 +172,7 @@ export function registerAuspostTools(server: McpServer, handlers: ToolHandlers):
     {
       title: 'AusPost Create Shipment',
       description:
-        'Create shipment(s) and return shipment_ids/article_ids. Typical follow-up: auspost_create_labels or auspost_create_order.',
+        'Create shipment(s) and return shipment_ids/article_ids. shipments must use nested fields: from/to/items (not flat origin_* or destination_* keys). Typical follow-up: auspost_create_labels or auspost_create_order.',
       inputSchema: createShipmentSchema,
       outputSchema: toolOutputSchema,
       annotations: {
@@ -223,7 +223,8 @@ export function registerAuspostTools(server: McpServer, handlers: ToolHandlers):
     'auspost_update_shipment',
     {
       title: 'AusPost Update Shipment',
-      description: 'Update an existing shipment by shipment_id.',
+      description:
+        'Update an existing shipment by shipment_id. data must use nested from/to/items structure, and each item must include item_id.',
       inputSchema: updateShipmentSchema,
       outputSchema: toolOutputSchema,
       annotations: {
@@ -363,7 +364,7 @@ export function registerAuspostTools(server: McpServer, handlers: ToolHandlers):
     {
       title: 'AusPost Run Fulfillment Flow',
       description:
-        'Guided workflow tool enforcing the normal lifecycle: price -> create_shipment -> create_label -> create_order -> order_summary -> track.',
+        'Guided workflow tool enforcing the normal lifecycle: price -> create_shipment -> create_label -> create_order -> order_summary -> track. If shipments are provided, use nested fields: from/to/items.',
       inputSchema: runFulfillmentFlowSchema,
       outputSchema: toolOutputSchema,
       annotations: {

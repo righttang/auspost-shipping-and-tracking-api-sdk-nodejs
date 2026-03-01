@@ -6,6 +6,28 @@ import { tmpdir } from 'node:os';
 import { createToolHandlers } from '../src/tools/handlers.js';
 import { WorkflowStateStore } from '../src/workflow-state.js';
 
+const validShipment = {
+  from: {
+    suburb: 'SYDNEY',
+    state: 'NSW',
+    postcode: '2000'
+  },
+  to: {
+    suburb: 'MELBOURNE',
+    state: 'VIC',
+    postcode: '3000'
+  },
+  items: [
+    {
+      product_id: 'T28S',
+      length: 10,
+      width: 10,
+      height: 10,
+      weight: 1
+    }
+  ]
+};
+
 function createMockSdk() {
   const calls: Array<{ method: string; args: unknown[] }> = [];
 
@@ -114,7 +136,7 @@ test('atomic create_shipment returns ids and calls SDK', async () => {
   const { sdk, calls } = createMockSdk();
   const handlers = createToolHandlers(sdk as never, new WorkflowStateStore());
 
-  const output = await handlers.auspost_create_shipment({ shipments: { from: {}, to: {}, items: [] } });
+  const output = await handlers.auspost_create_shipment({ shipments: validShipment });
 
   assert.equal(output.ok, true);
   assert.deepEqual(output.ids.shipment_ids, ['SHIP-1']);
@@ -184,7 +206,7 @@ test('workflow happy path stores and reuses IDs', async () => {
 
   const priced = await handlers.auspost_run_fulfillment_flow({
     step: 'price',
-    shipments: { from: {}, to: {}, items: [] }
+    shipments: validShipment
   });
 
   const workflowId = priced.ids.workflow_id;
