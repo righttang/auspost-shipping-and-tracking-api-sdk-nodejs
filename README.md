@@ -73,22 +73,50 @@ Credential guide:
 
 Use either the Testbed or Production config shown above.
 
-Common pattern across MCP server repos: CLI install commands usually register the server command, while credentials are supplied either via `--env` flags (if supported) or an `env` block in the client config file.
+Use `--env` flags where supported, or set `env` in the client config.
+Each section follows: `Install` -> `Config location` -> `Env setup`.
+
+Env block for all clients:
+
+```json
+"env": {
+  "AUSPOST_API_KEY": "...",
+  "AUSPOST_API_PASSWORD": "...",
+  "AUSPOST_ACCOUNT_NUMBER": "...",
+  "AUSPOST_BASE_URL": "https://digitalapi.auspost.com.au/test/shipping/v1"
+}
+```
 
 <details>
   <summary>Amp</summary>
-  Follow https://ampcode.com/manual#mcp and use the config provided above. You can also install the server using the CLI:
+
+Install:
 
 ```bash
 amp mcp add auspost -- npx -y auspost-shipping-and-tracking-api-mcp-server@latest
 ```
+
+Config location:
+- Amp settings (`amp.mcpServers`) in:
+  - macOS/Linux: `~/.config/amp/settings.json`
+  - Windows: `%USERPROFILE%\.config\amp\settings.json`
+
+Env setup:
+- Add the shared `env` block to `auspost`.
 
 </details>
 
 <details>
   <summary>Antigravity</summary>
 
-To use this server, follow the instructions from <a href="https://antigravity.google/docs/mcp">Antigravity docs</a> to install a custom MCP server. Add the following config:
+Install:
+- Add a custom MCP server in Antigravity using their MCP setup flow.
+
+Config location:
+- Antigravity MCP configuration in app settings.
+
+Env setup:
+- Use this config:
 
 ```json
 {
@@ -112,7 +140,8 @@ To use this server, follow the instructions from <a href="https://antigravity.go
 <details>
   <summary>Claude Code</summary>
 
-Use the Claude Code CLI to add this MCP server (<a href="https://code.claude.com/docs/en/mcp">guide</a>):
+Install:
+- CLI:
 
 ```bash
 claude mcp add --scope user --transport stdio \
@@ -123,7 +152,13 @@ claude mcp add --scope user --transport stdio \
   auspost -- npx -y auspost-shipping-and-tracking-api-mcp-server@latest
 ```
 
-Or set environment variable expansion in `.mcp.json`:
+Config location:
+- `--scope local` (default): local scope config
+- `--scope project`: `.mcp.json`
+- `--scope user`: user-level Claude config
+
+Env setup:
+- Use CLI `--env` flags above, or `.mcp.json` env expansion:
 
 ```json
 {
@@ -146,13 +181,22 @@ Or set environment variable expansion in `.mcp.json`:
 
 <details>
   <summary>Cline</summary>
-  Follow https://docs.cline.bot/mcp/configuring-mcp-servers and use the config provided above.
+
+Install:
+- Add a new MCP server from Cline MCP settings.
+
+Config location:
+- `cline_mcp_settings.json`
+
+Env setup:
+- Add the shared `env` block.
 </details>
 
 <details>
   <summary>Codex</summary>
-  Follow the <a href="https://developers.openai.com/codex/mcp/#configure-with-the-cli">configure MCP guide</a>
-  using the standard config from above. You can also install using the Codex CLI:
+
+Install:
+- CLI:
 
 ```bash
 codex mcp add \
@@ -163,7 +207,13 @@ codex mcp add \
   auspost -- npx -y auspost-shipping-and-tracking-api-mcp-server@latest
 ```
 
-**On Windows 11**
+Config location:
+- `config.toml`
+
+Env setup:
+- Use CLI `--env` flags above, or set `env` in `config.toml`.
+
+**Windows 11 example**
 
 Configure `.codex/config.toml`:
 
@@ -198,7 +248,8 @@ env = {
 <details>
   <summary>Copilot CLI</summary>
 
-Start Copilot CLI:
+Install:
+- Start Copilot CLI:
 
 ```bash
 copilot
@@ -216,40 +267,72 @@ Configure:
 - **Server Type:** `[1] Local`
 - **Command:** `npx -y auspost-shipping-and-tracking-api-mcp-server@latest`
 
+Config location:
+- `~/.copilot/mcp-config.json`
+
+Env setup:
+- Add AUSPOST variables in `env`.
+
 </details>
 
 <details>
   <summary>Copilot / VS Code</summary>
 
-Follow the MCP install <a href="https://code.visualstudio.com/docs/copilot/chat/mcp-servers#_add-an-mcp-server">guide</a>,
-with the standard config from above. You can also install using the VS Code CLI:
+Install:
+- Use VS Code MCP setup UI or CLI:
 
 ```bash
 code --add-mcp '{"name":"auspost","command":"npx","args":["-y","auspost-shipping-and-tracking-api-mcp-server@latest"],"env":{"AUSPOST_API_KEY":"...","AUSPOST_API_PASSWORD":"...","AUSPOST_ACCOUNT_NUMBER":"...","AUSPOST_BASE_URL":"https://digitalapi.auspost.com.au/test/shipping/v1"}}'
 ```
+
+Config location:
+- User MCP config (`MCP: Open User Configuration`)
+- Project MCP config: `.vscode/mcp.json`
+
+Env setup:
+- Ensure `env` includes AUSPOST variables.
 
 </details>
 
 <details>
   <summary>Cursor</summary>
 
-Go to `Cursor Settings` -> `MCP` -> `New MCP Server`. Use the config provided above.
+Install:
+- `Cursor Settings` -> `MCP` -> `New MCP Server`
+
+Config location:
+- Global: `~/.cursor/mcp.json`
+- Project: `.cursor/mcp.json`
+
+Env setup:
+- Add the shared `env` block.
 
 </details>
 
 <details>
   <summary>Factory CLI</summary>
-Use the Factory CLI to add the server (<a href="https://docs.factory.ai/cli/configuration/mcp">guide</a>):
+
+Install:
+- CLI:
 
 ```bash
 droid mcp add auspost "npx -y auspost-shipping-and-tracking-api-mcp-server@latest"
 ```
 
+Config location:
+- User: `~/.factory/mcp.json`
+- Project: `.factory/mcp.json`
+
+Env setup:
+- After install, add the shared `env` block.
+
 </details>
 
 <details>
   <summary>Gemini CLI</summary>
-Install using the Gemini CLI.
+
+Install:
+- CLI:
 
 **Project wide:**
 
@@ -265,39 +348,70 @@ gemini mcp add -s user auspost npx -y auspost-shipping-and-tracking-api-mcp-serv
 
 Alternatively, follow the <a href="https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md#how-to-set-up-your-mcp-server">MCP guide</a> and use the standard config from above.
 
+Config location:
+- User: `~/.gemini/settings.json`
+- Project: `.gemini/settings.json`
+
+Env setup:
+- For both scopes, ensure config includes the shared `env` block.
+- Gemini CLI also supports `-e/--env` flags in `gemini mcp add`.
+
 </details>
 
 <details>
   <summary>Gemini Code Assist</summary>
-  Follow the <a href="https://cloud.google.com/gemini/docs/codeassist/use-agentic-chat-pair-programmer#configure-mcp-servers">configure MCP guide</a>
-  using the standard config from above.
+
+Install:
+- Use Gemini Code Assist MCP server setup in IDE settings.
+
+Config location:
+- Gemini Code Assist MCP configuration in IDE/workspace settings.
+
+Env setup:
+- Include the shared `env` block in local server config.
 </details>
 
 <details>
   <summary>JetBrains AI Assistant & Junie</summary>
 
-Go to `Settings | Tools | AI Assistant | Model Context Protocol (MCP)` -> `Add`. Use the config provided above.
-The same way this server can be configured for JetBrains Junie in `Settings | Tools | Junie | MCP Settings` -> `Add`.
+Install:
+- AI Assistant: `Settings | Tools | AI Assistant | Model Context Protocol (MCP)` -> `Add`
+- Junie: `Settings | Tools | Junie | MCP Settings` -> `Add`
+
+Config location:
+- JetBrains MCP configuration from those settings panels.
+
+Env setup:
+- Ensure the server entry includes the shared `env` block.
 
 </details>
 
 <details>
   <summary>Kiro</summary>
 
-In **Kiro Settings**, go to `Configure MCP` > `Open Workspace or User MCP Config` > Use the configuration snippet provided above.
+Install:
+- In **Kiro Settings**, go to `Configure MCP` -> `Open Workspace or User MCP Config`
+- Or IDE **Activity Bar** -> `Kiro` -> `MCP Servers` -> `Open MCP Config`
 
-Or, from the IDE **Activity Bar** > `Kiro` > `MCP Servers` > `Open MCP Config`.
+Config location:
+- Kiro workspace/user MCP config file.
+
+Env setup:
+- Ensure the server entry includes the shared `env` block.
 
 </details>
 
 <details>
   <summary>Katalon Studio</summary>
 
-This MCP server can be used with <a href="https://docs.katalon.com/katalon-studio/studioassist/mcp-servers/setting-up-mcp-proxy-for-stdio-mcp-servers">Katalon MCP proxy</a>.
+Install:
+- Start proxy and configure Katalon to connect to the proxy.
 
-Start with proxy:
+Start with proxy (either export variables in your shell first, or set them inline):
 
 ```bash
+AUSPOST_API_KEY=... AUSPOST_API_PASSWORD=... AUSPOST_ACCOUNT_NUMBER=... \
+AUSPOST_BASE_URL=https://digitalapi.auspost.com.au/test/shipping/v1 \
 mcp-proxy --transport streamablehttp --port 8080 -- npx -y auspost-shipping-and-tracking-api-mcp-server@latest
 ```
 
@@ -306,10 +420,25 @@ Then in Katalon Studio:
 - **Connection URL:** `http://127.0.0.1:8080/mcp`
 - **Transport type:** `HTTP`
 
+Config location:
+- Katalon MCP connection settings (URL + transport).
+
+Env setup:
+- Set AUSPOST env vars in the shell running `mcp-proxy` (as shown above) so they are inherited by the stdio server.
+
 </details>
 
 <details>
   <summary>OpenCode</summary>
+
+Install:
+- Add a local MCP server entry in OpenCode config.
+
+Config location:
+- `~/.config/opencode/opencode.json`
+
+Env setup:
+- Include the shared `env` block:
 
 Add to `~/.config/opencode/opencode.json` (<a href="https://opencode.ai/docs/mcp-servers">guide</a>):
 
@@ -336,16 +465,24 @@ Add to `~/.config/opencode/opencode.json` (<a href="https://opencode.ai/docs/mcp
 <details>
   <summary>Qoder</summary>
 
-In **Qoder Settings**, go to `MCP Server` > `+ Add` > Use the configuration snippet provided above.
+Install:
+- In **Qoder Settings**, go to `MCP Server` -> `+ Add`
 
-Alternatively, follow the <a href="https://docs.qoder.com/user-guide/chat/model-context-protocol">MCP guide</a>.
+Config location:
+- User: `~/.qoder.json`
+- Project: `.mcp.json`
+- Reference: <a href="https://docs.qoder.com/user-guide/chat/model-context-protocol">Qoder MCP guide</a>
+
+Env setup:
+- Ensure the server entry includes the shared `env` block.
 
 </details>
 
 <details>
   <summary>Qoder CLI</summary>
 
-Install using the Qoder CLI (<a href="https://docs.qoder.com/cli/using-cli#mcp-servers">guide</a>):
+Install:
+- Qoder CLI:
 
 **Project wide:**
 
@@ -359,24 +496,54 @@ qodercli mcp add auspost -- npx -y auspost-shipping-and-tracking-api-mcp-server@
 qodercli mcp add -s user auspost -- npx -y auspost-shipping-and-tracking-api-mcp-server@latest
 ```
 
+Config location:
+- User: `~/.qoder.json`
+- Project: `.mcp.json`
+- Reference: <a href="https://docs.qoder.com/cli/using-cli#mcp-servers">Qoder CLI guide</a>
+
+Env setup:
+- After install, add the shared `env` block.
+
 </details>
 
 <details>
   <summary>Visual Studio</summary>
-  Follow Visual Studio MCP setup and add a local server using the standard config above.
+
+Install:
+- Follow Visual Studio MCP setup and add a local server.
+
+Config location:
+- `.mcp.json` in the solution folder or `%USERPROFILE%`
+
+Env setup:
+- Include the required AUSPOST variables in the server `env` configuration.
 </details>
 
 <details>
   <summary>Warp</summary>
 
-Go to `Settings | AI | Manage MCP Servers` -> `+ Add` to [add an MCP Server](https://docs.warp.dev/knowledge-and-collaboration/mcp#adding-an-mcp-server). Use the config provided above.
+Install:
+- `Settings | AI | Manage MCP Servers` -> `+ Add`
+
+Config location:
+- Warp MCP server configuration managed from Warp settings UI.
+
+Env setup:
+- Include the shared `env` block in the `auspost` server entry.
 
 </details>
 
 <details>
   <summary>Windsurf</summary>
-  Follow the <a href="https://docs.windsurf.com/windsurf/cascade/mcp#mcp-config-json">configure MCP guide</a>
-  using the standard config from above.
+
+Install:
+- Configure in Windsurf MCP settings (`Cascade` -> MCP).
+
+Config location:
+- `~/.codeium/windsurf/mcp_config.json`
+
+Env setup:
+- Include the shared `env` block in the `auspost` server entry.
 </details>
 
 ## Tools
