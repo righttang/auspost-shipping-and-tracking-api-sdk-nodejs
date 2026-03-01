@@ -1,0 +1,41 @@
+{
+  "name": "auspost-shipping-and-tracking-api",
+  "version": "1.0.0",
+  "description": "Australia Post Shipping and Tracking SDK",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
+    "test:integration": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --testPathPattern=integration",
+    "test:watch": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "AUSPOST_API_KEY= AUSPOST_API_PASSWORD= AUSPOST_ACCOUNT_NUMBER= node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage",
+    "lint": "eslint src tests test-endpoints.js",
+    "lint:fix": "npm run lint -- --fix"
+  },
+  "keywords": [
+    "australia-post",
+    "auspost",
+    "shipping",
+    "tracking",
+    "parcel",
+    "sdk"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.13.4",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "eslint": "^9.36.0",
+    "globals": "^16.4.0",
+    "jest": "^29.7.0"
+  }
+}

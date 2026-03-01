@@ -1,0 +1,398 @@
+# Australia Post Shipping and Tracking API
+
+A Node.js SDK for the Australia Post Shipping and Tracking API. Create shipments, generate labels, manage orders, and track parcels.
+
+## Official Documentation
+
+- [Australia Post Developer Portal](https://developers.auspost.com.au/)
+- [Shipping & Tracking API Documentation](https://developers.auspost.com.au/apis/shipping-tracking)
+
+## Installation
+
+If the package is not published to npm yet, install directly from GitHub:
+
+```bash
+npm install github:righttang/auspost-shipping-and-tracking-api-sdk-nodejs
+```
+
+
+
+Requires Node.js 18 or newer.
+
+## Features
+
+- **Shipping**: Create, update, delete, and validate shipments
+- **Pricing**: Calculate shipping costs for items
+- **Orders**: Create orders from shipments and get order summaries
+- **Labels**: Generate shipping labels in various formats
+- **Tracking**: Track parcels by article ID
+- **Address Validation**: Validate suburb/state/postcode combinations
+- **Error Handling**: Typed error classes for different API error scenarios
+
+## Quick Start
+
+### Setup
+
+1. Copy the environment template:
+```bash
+cp .env.example .env
+```
+
+2. Edit `.env` with your credentials:
+```
+AUSPOST_API_KEY=your_api_key_here
+AUSPOST_API_PASSWORD=your_api_password_here
+AUSPOST_ACCOUNT_NUMBER=your_account_number
+AUSPOST_BASE_URL=https://digitalapi.auspost.com.au/test/shipping/v1
+```
+
+### Base URLs
+
+| Environment | URL |
+|-------------|-----|
+| Testbed | `https://digitalapi.auspost.com.au/test/shipping/v1` |
+| Production | `https://digitalapi.auspost.com.au/shipping/v1` |
+
+### Basic Usage
+
+```javascript
+import 'dotenv/config';
+import AusPostSDK from 'auspost-shipping-and-tracking-api';
+
+const sdk = new AusPostSDK({
+  apiKey: process.env.AUSPOST_API_KEY,
+  apiPassword: process.env.AUSPOST_API_PASSWORD,
+  accountNumber: process.env.AUSPOST_ACCOUNT_NUMBER,
+  baseUrl: process.env.AUSPOST_BASE_URL
+});
+```
+
+You can also use the built-in URL constants:
+
+```javascript
+import AusPostSDK, { Config } from 'auspost-shipping-and-tracking-api';
+
+// Use testbed (default)
+const sdk = new AusPostSDK({
+  apiKey: 'your_key',
+  apiPassword: 'your_password',
+  accountNumber: '1234567890',
+  baseUrl: Config.URLS.testbed
+});
+
+// Use production
+const sdkProd = new AusPostSDK({
+  apiKey: 'your_key',
+  apiPassword: 'your_password',
+  accountNumber: '1234567890',
+  baseUrl: Config.URLS.production
+});
+```
+
+## API Reference
+
+### Shipping Operations
+
+#### Get Account Details
+```javascript
+const account = await sdk.shipping.getAccountDetails();
+console.log('Account:', account);
+```
+
+#### Create a Shipment
+```javascript
+const shipment = await sdk.shipping.createShipment({
+  shipment_reference: 'ORDER-12345',
+  from: {
+    name: 'Sender Name',
+    lines: ['123 Sender Street'],
+    suburb: 'MELBOURNE',
+    state: 'VIC',
+    postcode: '3000',
+    country: 'AU'
+  },
+  to: {
+    name: 'Recipient Name',
+    lines: ['456 Recipient Road'],
+    suburb: 'SYDNEY',
+    state: 'NSW',
+    postcode: '2000',
+    country: 'AU'
+  },
+  items: [{
+    item_reference: 'ITEM-001',
+    product_id: '7E55',  // Parcel Post product code
+    length: 20,          // cm
+    width: 15,           // cm
+    height: 10,          // cm
+    weight: 1.5,         // kg
+    authority_to_leave: true
+  }]
+});
+
+console.log('Shipment ID:', shipment.shipments[0].shipment_id);
+console.log('Article ID:', shipment.shipments[0].items[0].tracking_details.article_id);
+```
+
+#### Validate Shipment (without creating)
+```javascript
+const validation = await sdk.shipping.validateShipment({
+  // same structure as createShipment
+});
+```
+
+#### Get Shipment Details
+```javascript
+// Get single shipment
+const details = await sdk.shipping.getShipment('SHIPMENT_ID');
+
+// Get multiple shipments
+const multipleShipments = await sdk.shipping.getShipment(['ID1', 'ID2', 'ID3']);
+```
+
+#### Get Shipments with Pagination
+```javascript
+const shipments = await sdk.shipping.getShipments({
+  offset: 0,
+  numberOfShipments: 10,
+  status: 'Created',           // Optional filter
+  despatchDate: '2024-01-15',  // Optional filter (yyyy-MM-dd)
+  senderReference: 'ORDER-123' // Optional filter
+});
+```
+
+#### Update Shipment
+```javascript
+const updated = await sdk.shipping.updateShipment('SHIPMENT_ID', {
+  // updated shipment data
+});
+```
+
+#### Delete Shipment
+```javascript
+// Delete single shipment
+await sdk.shipping.deleteShipment('SHIPMENT_ID');
+
+// Delete multiple shipments
+await sdk.shipping.deleteShipment(['SHIPMENT_ID_1', 'SHIPMENT_ID_2']);
+```
+
+### Pricing
+
+#### Get Item Prices (Base pricing, excludes surcharges)
+```javascript
+const price = await sdk.shipping.getItemPrices({
+  from: { postcode: '3000' },
+  to: { postcode: '2000' },
+  items: [{
+    product_id: '7E55',
+    length: 20,
+    width: 15,
+    height: 10,
+    weight: 1.5
+  }]
+});
+
+console.log('Base Price:', price);
+```
+
+#### Get Shipment Price (Full pricing with surcharges including fuel)
+```javascript
+const price = await sdk.shipping.getShipmentPrice({
+  shipments: [{
+    from: {
+      postcode: '3000',
+      suburb: 'MELBOURNE',
+      state: 'VIC'
+    },
+    to: {
+      postcode: '2000',
+      suburb: 'SYDNEY',
+      state: 'NSW'
+    },
+    items: [{
+      product_id: 'T28S',
+      length: 10,
+      height: 10,
+      width: 10,
+      weight: 1
+    }]
+  }]
+});
+
+console.log('Total Cost:', price.shipments[0].shipment_summary.total_cost);
+console.log('Fuel Surcharge:', price.shipments[0].shipment_summary.fuel_surcharge);
+```
+
+### Orders
+
+#### Create Order from Shipments
+```javascript
+const order = await sdk.shipping.createOrder(
+  ['SHIPMENT_ID_1', 'SHIPMENT_ID_2'],
+  { orderReference: 'MY-ORDER-001' }
+);
+
+console.log('Order ID:', order.order.order_id);
+```
+
+#### Get Order Details
+```javascript
+const orderDetails = await sdk.shipping.getOrder('ORDER_ID');
+```
+
+#### Get Order Summary (PDF)
+```javascript
+import { writeFileSync } from 'node:fs';
+
+const pdfBuffer = await sdk.shipping.getOrderSummary('ORDER_ID');
+writeFileSync('order-summary.pdf', pdfBuffer);
+```
+
+### Labels
+
+#### Generate Labels
+```javascript
+const labels = await sdk.shipping.createLabels(
+  ['SHIPMENT_ID_1', 'SHIPMENT_ID_2'],
+  {
+    type: 'LINK',           // or 'PRINT'
+    group: 'Parcel Post',   // or 'Express Post'
+    layout: 'A4-1pp',       // A4-1pp, A4-3pp, A4-4pp, THERMAL-LABEL-A6
+    branded: true
+  }
+);
+
+console.log('Label URL:', labels.labels[0].label_url);
+```
+
+#### Get Label Status
+```javascript
+const labelStatus = await sdk.shipping.getLabel('LABEL_ID');
+```
+
+### Address Validation
+
+#### Validate Suburb/Postcode
+```javascript
+const validation = await sdk.shipping.validateSuburb('SYDNEY', 'NSW', '2000');
+console.log('Valid:', validation.found);
+```
+
+### Tracking
+
+#### Track Single Item
+```javascript
+const tracking = await sdk.tracking.trackItem('ARTICLE_ID');
+console.log('Tracking:', tracking);
+```
+
+#### Track Multiple Items (max 10)
+```javascript
+const tracking = await sdk.tracking.trackItems([
+  'ARTICLE_ID_1',
+  'ARTICLE_ID_2',
+  'ARTICLE_ID_3'
+]);
+```
+
+> **Note**: Tracking API is rate limited to 10 requests per minute.
+
+### Validate Credentials
+
+```javascript
+try {
+  await sdk.validateCredentials();
+  console.log('Credentials are valid');
+} catch (error) {
+  console.error('Invalid credentials:', error.message);
+}
+```
+
+## Error Handling
+
+The SDK provides typed error classes for different scenarios:
+
+```javascript
+import { errors } from 'auspost-shipping-and-tracking-api';
+const {
+  ApiError,
+  ConfigurationError,
+  AuthenticationError,
+  ValidationError,
+  NotFoundError,
+  RateLimitError,
+  ServerError
+} = errors;
+
+try {
+  await sdk.shipping.createShipment(data);
+} catch (error) {
+  if (error instanceof ValidationError) {
+    console.error('Invalid shipment data:', error.details);
+  } else if (error instanceof AuthenticationError) {
+    console.error('Authentication failed:', error.message);
+  } else if (error instanceof RateLimitError) {
+    console.error('Rate limited. Retry after:', error.retryAfter, 'seconds');
+  } else if (error instanceof NotFoundError) {
+    console.error('Resource not found:', error.resource, error.resourceId);
+  } else {
+    console.error('API error:', error.message);
+  }
+}
+```
+
+## Configuration Options
+
+| Option | Environment Variable | Required | Default | Description |
+|--------|---------------------|----------|---------|-------------|
+| `apiKey` | `AUSPOST_API_KEY` | Yes | - | Your API key |
+| `apiPassword` | `AUSPOST_API_PASSWORD` | Yes | - | Your API password |
+| `accountNumber` | `AUSPOST_ACCOUNT_NUMBER` | Yes | - | Your 10-digit account number |
+| `baseUrl` | `AUSPOST_BASE_URL` | No | Testbed URL | API base URL |
+| `timeout` | `AUSPOST_TIMEOUT` | No | `30000` | Request timeout in milliseconds |
+
+## API Endpoints
+
+| Service | Method | Endpoint | Description |
+|---------|--------|----------|-------------|
+| Get Accounts | GET | `/accounts/{account}` | Account details & products |
+| Create Shipments | POST | `/shipments` | Create shipments |
+| Get Shipments | GET | `/shipments?shipment_ids={ids}` | Get shipment details by IDs |
+| Get Shipments (Pagination) | GET | `/shipments?offset={offset}&number_of_shipments={n}` | List shipments with pagination |
+| Update Shipment | PUT | `/shipments/{id}` | Update shipment |
+| Delete Shipment | DELETE | `/shipments/{id}` | Delete one shipment |
+| Delete Shipments (Batch) | DELETE | `/shipments?shipment_ids={ids}` | Delete multiple shipments |
+| Validate Shipments | POST | `/shipments/validation` | Validate without creating |
+| Get Item Prices | POST | `/prices/items` | Base pricing (excludes surcharges) |
+| Get Shipment Price | POST | `/prices/shipments` | Full pricing with surcharges |
+| Create Order | PUT | `/orders` | Create order from shipments |
+| Get Order | GET | `/orders/{id}` | Get order details |
+| Get Order Summary | GET | `/accounts/{account}/orders/{id}/summary` | PDF order summary |
+| Create Labels | POST | `/labels` | Generate shipping labels |
+| Get Label | GET | `/labels/{id}` | Get label status/data |
+| Track Items | GET | `/track?tracking_ids={ids}` | Track parcels |
+| Validate Suburb | GET | `/address` | Validate suburb/postcode |
+
+## Testing
+
+```bash
+# Lint source and tests
+npm run lint
+
+# Run all tests
+npm test
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run integration tests (requires credentials in .env)
+npm run test:integration
+
+# Watch mode
+npm run test:watch
+```
+
+## License
+
+ISC

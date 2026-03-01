@@ -1,0 +1,912 @@
+openapi: 3.0.3
+info:
+  title: Australia Post Shipping & Tracking API
+  description: |
+    Australia Post Shipping and Tracking API for creating shipments, orders, labels, and tracking parcels.
+
+    ## Authentication
+    All endpoints use HTTP Basic Authentication with your API key and password.
+
+    ## Rate Limits
+    - Tracking endpoint: 10 requests per minute
+  version: 1.0.0
+  contact:
+    name: Australia Post Developer Support
+    url: https://developers.auspost.com.au
+
+servers:
+  - url: https://digitalapi.auspost.com.au/test/shipping/v1
+    description: Testbed environment
+  - url: https://digitalapi.auspost.com.au/shipping/v1
+    description: Production environment
+
+security:
+  - basicAuth: []
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: Base64 encoded API key and password
+
+  parameters:
+    AccountNumber:
+      name: Account-Number
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: '^\d{10}$'
+      description: 10-digit Australia Post account number (zero-padded)
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              name:
+                type: string
+              message:
+                type: string
+              field:
+                type: string
+
+    Address:
+      type: object
+      required:
+        - lines
+        - suburb
+        - state
+        - postcode
+        - country
+      properties:
+        name:
+          type: string
+          maxLength: 40
+        business_name:
+          type: string
+          maxLength: 40
+        lines:
+          type: array
+          items:
+            type: string
+            maxLength: 40
+          minItems: 1
+          maxItems: 3
+        suburb:
+          type: string
+          maxLength: 30
+        state:
+          type: string
+          enum: [ACT, NSW, NT, QLD, SA, TAS, VIC, WA]
+        postcode:
+          type: string
+          pattern: '^\d{4}$'
+        country:
+          type: string
+          default: AU
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+
+    Item:
+      type: object
+      required:
+        - item_reference
+        - product_id
+        - length
+        - width
+        - height
+        - weight
+        - authority_to_leave
+      properties:
+        item_reference:
+          type: string
+          description: Your reference for this item
+        product_id:
+          type: string
+          description: Australia Post product code (e.g., 7E55, PR)
+        length:
+          type: number
+          description: Length in cm
+        width:
+          type: number
+          description: Width in cm
+        height:
+          type: number
+          description: Height in cm
+        weight:
+          type: number
+          description: Weight in kg
+        authority_to_leave:
+          type: boolean
+        allow_partial_delivery:
+          type: boolean
+        contains_dangerous_goods:
+          type: boolean
+          default: false
+        features:
+          type: object
+          properties:
+            TRANSIT_COVER:
+              type: object
+              properties:
+                attributes:
+                  type: object
+                  properties:
+                    cover_amount:
+                      type: number
+            SIGNATURE_ON_DELIVERY:
+              type: object
+
+    Shipment:
+      type: object
+      required:
+        - shipment_reference
+        - from
+        - to
+        - items
+      properties:
+        shipment_reference:
+          type: string
+          description: Your reference for this shipment
+        customer_reference_1:
+          type: string
+        customer_reference_2:
+          type: string
+        email_tracking_enabled:
+          type: boolean
+        from:
+          $ref: '#/components/schemas/Address'
+        to:
+          $ref: '#/components/schemas/Address'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Item'
+          minItems: 1
+
+    ShipmentResponse:
+      type: object
+      properties:
+        shipments:
+          type: array
+          items:
+            type: object
+            properties:
+              shipment_id:
+                type: string
+              shipment_reference:
+                type: string
+              shipment_creation_date:
+                type: string
+                format: date-time
+              items:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    item_id:
+                      type: string
+                    item_reference:
+                      type: string
+                    tracking_details:
+                      type: object
+                      properties:
+                        article_id:
+                          type: string
+                        consignment_id:
+                          type: string
+                    product_id:
+                      type: string
+
+    Order:
+      type: object
+      properties:
+        order_id:
+          type: string
+        order_reference:
+          type: string
+        order_creation_date:
+          type: string
+          format: date-time
+        order_summary:
+          type: object
+          properties:
+            total_cost:
+              type: number
+            total_gst:
+              type: number
+            number_of_shipments:
+              type: integer
+            number_of_items:
+              type: integer
+
+    Label:
+      type: object
+      properties:
+        label_id:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, GENERATED, FAILED]
+        request_date:
+          type: string
+          format: date-time
+        labels:
+          type: array
+          items:
+            type: object
+            properties:
+              shipment_id:
+                type: string
+              label_url:
+                type: string
+              label_status:
+                type: string
+
+    TrackingResult:
+      type: object
+      properties:
+        tracking_results:
+          type: array
+          items:
+            type: object
+            properties:
+              tracking_id:
+                type: string
+              status:
+                type: string
+              trackable_items:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    article_id:
+                      type: string
+                    product_type:
+                      type: string
+                    events:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          location:
+                            type: string
+                          description:
+                            type: string
+                          date:
+                            type: string
+                            format: date-time
+
+    PriceRequest:
+      type: object
+      required:
+        - from
+        - to
+        - items
+      properties:
+        from:
+          type: object
+          required:
+            - postcode
+          properties:
+            postcode:
+              type: string
+        to:
+          type: object
+          required:
+            - postcode
+          properties:
+            postcode:
+              type: string
+        items:
+          type: array
+          items:
+            type: object
+            required:
+              - product_id
+              - length
+              - width
+              - height
+              - weight
+            properties:
+              product_id:
+                type: string
+              length:
+                type: number
+              width:
+                type: number
+              height:
+                type: number
+              weight:
+                type: number
+
+    PriceResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              product_id:
+                type: string
+              product_type:
+                type: string
+              price:
+                type: number
+              gst:
+                type: number
+              total_price:
+                type: number
+
+    SuburbValidation:
+      type: object
+      properties:
+        found:
+          type: boolean
+        locality:
+          type: object
+          properties:
+            suburb:
+              type: string
+            state:
+              type: string
+            postcode:
+              type: string
+
+paths:
+  /accounts/{account}:
+    get:
+      summary: Get account details
+      description: Retrieve account details and available products
+      operationId: getAccount
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+        - name: account
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Account number
+      responses:
+        '200':
+          description: Account details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account_number:
+                    type: string
+                  account_type:
+                    type: string
+                  products:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        product_id:
+                          type: string
+                        product_name:
+                          type: string
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Account not found
+
+  /shipments:
+    get:
+      summary: Get shipments
+      description: Retrieve shipments by IDs or with pagination
+      operationId: getShipments
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+        - name: shipment_ids
+          in: query
+          schema:
+            type: string
+          description: Comma-separated list of shipment IDs
+        - name: offset
+          in: query
+          schema:
+            type: integer
+          description: Starting record number (0-based) for pagination
+        - name: number_of_shipments
+          in: query
+          schema:
+            type: integer
+          description: Number of records to return for pagination
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [Created, Initiated]
+          description: Filter by shipment status
+        - name: despatch_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter by despatch date (yyyy-MM-dd)
+        - name: sender_reference
+          in: query
+          schema:
+            type: string
+          description: Filter by sender reference
+      responses:
+        '200':
+          description: Shipment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShipmentResponse'
+        '400':
+          description: Invalid request
+        '404':
+          description: Shipment not found
+    post:
+      summary: Create shipments
+      description: Create one or more shipments
+      operationId: createShipments
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - shipments
+              properties:
+                shipments:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Shipment'
+      responses:
+        '201':
+          description: Shipments created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShipmentResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication failed
+
+  /shipments/validation:
+    post:
+      summary: Validate shipments
+      description: Validate shipment data without creating. Returns empty body on success, errors on failure.
+      operationId: validateShipments
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                shipments:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Shipment'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                  errors:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Error'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /shipments/{shipmentId}:
+    put:
+      summary: Update shipment
+      description: Update an existing shipment
+      operationId: updateShipment
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+        - name: shipmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Shipment'
+      responses:
+        '200':
+          description: Shipment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShipmentResponse'
+        '400':
+          description: Validation error
+        '404':
+          description: Shipment not found
+
+    delete:
+      summary: Delete shipment
+      description: Delete an existing shipment
+      operationId: deleteShipment
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+        - name: shipmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Shipment deleted
+        '404':
+          description: Shipment not found
+
+  /prices/items:
+    post:
+      summary: Get item prices
+      description: Calculate base shipping prices for items (excludes surcharges like fuel)
+      operationId: getItemPrices
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriceRequest'
+      responses:
+        '200':
+          description: Price calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceResponse'
+        '400':
+          description: Invalid request
+
+  /prices/shipments:
+    post:
+      summary: Get shipment price
+      description: Calculate full shipping prices including surcharges (fuel surcharge, etc.)
+      operationId: getShipmentPrice
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - shipments
+              properties:
+                shipments:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Shipment'
+      responses:
+        '200':
+          description: Full price calculation with surcharges
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  shipments:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        shipment_summary:
+                          type: object
+                          properties:
+                            total_cost:
+                              type: number
+                            total_cost_ex_gst:
+                              type: number
+                            fuel_surcharge:
+                              type: number
+                            total_gst:
+                              type: number
+                            status:
+                              type: string
+                        items:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              product_id:
+                                type: string
+                              item_summary:
+                                type: object
+                                properties:
+                                  total_cost:
+                                    type: number
+                                  total_cost_ex_gst:
+                                    type: number
+                                  total_gst:
+                                    type: number
+        '400':
+          description: Invalid request
+
+  /orders:
+    put:
+      summary: Create order from shipments
+      description: Create an order from existing shipments. Note this uses PUT method.
+      operationId: createOrder
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - shipments
+              properties:
+                shipments:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      shipment_id:
+                        type: string
+                order_reference:
+                  type: string
+                payment_method:
+                  type: string
+                  enum: [CHARGE_TO_ACCOUNT]
+                  default: CHARGE_TO_ACCOUNT
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order:
+                    $ref: '#/components/schemas/Order'
+        '400':
+          description: Invalid request
+
+  /orders/{orderId}:
+    get:
+      summary: Get order
+      description: Retrieve order details
+      operationId: getOrder
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order:
+                    $ref: '#/components/schemas/Order'
+        '404':
+          description: Order not found
+
+  /accounts/{account}/orders/{orderId}/summary:
+    get:
+      summary: Get order summary
+      description: Get PDF summary of order with charges breakdown
+      operationId: getOrderSummary
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+        - name: account
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Account number (same as Account-Number header)
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: PDF document
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /labels:
+    post:
+      summary: Create labels
+      description: Generate shipping labels for shipments
+      operationId: createLabels
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - shipments
+              properties:
+                shipments:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      shipment_id:
+                        type: string
+                preferences:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [PRINT, LINK]
+                      groups:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            group:
+                              type: string
+                              enum: [Parcel Post, Express Post]
+                            layout:
+                              type: string
+                              enum: [A4-1pp, A4-3pp, A4-4pp, THERMAL-LABEL-A6]
+                            branded:
+                              type: boolean
+                            left_offset:
+                              type: integer
+                            top_offset:
+                              type: integer
+      responses:
+        '201':
+          description: Labels created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label'
+        '400':
+          description: Invalid request
+
+  /labels/{labelId}:
+    get:
+      summary: Get label
+      description: Get label status and data
+      operationId: getLabel
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+        - name: labelId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Label details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label'
+        '404':
+          description: Label not found
+
+  /track:
+    get:
+      summary: Track items
+      description: |
+        Track parcels by tracking ID(s).
+
+        **Rate Limit**: 10 requests per minute
+      operationId: trackItems
+      parameters:
+        - name: tracking_ids
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Comma-separated tracking IDs (max 10)
+      responses:
+        '200':
+          description: Tracking results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingResult'
+        '429':
+          description: Rate limit exceeded
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds to wait before retrying
+
+  /address:
+    get:
+      summary: Validate suburb
+      description: Validate suburb, state and postcode combination and returns valid suburbs for the given state and postcode.
+      operationId: validateSuburb
+      parameters:
+        - name: suburb
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [ACT, NSW, NT, QLD, SA, TAS, VIC, WA]
+        - name: postcode
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}$'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuburbValidation'
+        '400':
+          description: Invalid parameters

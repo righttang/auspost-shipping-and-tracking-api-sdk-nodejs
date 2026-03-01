@@ -1,0 +1,44 @@
+{
+  "name": "auspost-shipping-and-tracking-api-mcp-server",
+  "version": "0.1.2",
+  "description": "MCP server wrapper for the Australia Post Shipping and Tracking SDK",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/righttang/auspost-shipping-and-tracking-api-sdk-nodejs"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "bin": {
+    "auspost-mcp-server": "dist/index.js"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "sync:readme": "cp ../../README.md ./README.md",
+    "prepack": "npm run sync:readme && npm run build",
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "node --test --import tsx tests/**/*.test.ts",
+    "test:live": "AUSPOST_LIVE=1 node --test --import tsx tests/live.integration.test.ts",
+    "check": "npm run build && npm run test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5",
+    "axios": "^1.13.4",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "tsx": "^4.20.5",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,61 @@
+name: Publish MCP Package
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/auspost-mcp-server/**"
+      - "README.md"
+      - ".github/workflows/publish-mcp.yml"
+      - ".releaserc.cjs"
+
+concurrency:
+  group: publish-mcp-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Upgrade npm for Trusted Publishing
+        run: |
+          npm install -g npm@latest
+          npm --version
+
+      - name: Install dependencies
+        working-directory: packages/auspost-mcp-server
+        run: npm ci
+
+      - name: Build and test
+        working-directory: packages/auspost-mcp-server
+        run: npm run check
+
+      - name: Release and publish (main only)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+        run: |
+          npm config delete //registry.npmjs.org/:_authToken || true
+          npx --yes \
+            --package semantic-release \
+            --package @semantic-release/commit-analyzer \
+            --package @semantic-release/release-notes-generator \
+            --package @semantic-release/exec \
+            semantic-release
